@@ -1,32 +1,29 @@
-property oggfolder : "/Users/jeff/Music/toOggplayer/"
-property outfolder : "/Users/jeff/Music/Fastened/"
+# notifications http://macosxautomation.com/mavericks/notifications/01.html
+
+property outfolder : ""
 property outputformat : "mp3"
 
+property thesox : "/usr/local/bin/sox" --checkcmd("sox")
+property thelame : "/usr/local/bin/lame" --checkcmd("lame")
+--property theid3 : "/usr/local/bin/id3v2" --checkcmd("id3v2")
+property theid3cp : "/usr/local/bin/id3cp" --checkcmd("id3v2")
+
+
 on run
-	--do shell script "env"
-	--do shell script "echo $user"
-	--do shell script "echo $PATH"
-	-- NEED TO GET /usr/local/bin in $PATH do shell script is not run in an interactive shell and env set by .profile is not available
-	checkcmd("sox")
-	set thesox to "/usr/local/bin/sox" --checkcmd("sox")
-	set theogg to "/usr/local/bin/oggenc" --checkcmd("oggenc")
-	set thelame to "/opt/local/bin/lame" --checkcmd("oggenc")
+	-- NEED TO GET /usr/local/bin in $PATH. do shell script is not run in an interactive shell and env set by .profile is not available
+	-- checkcmd("sox")
 	tell application "iTunes"
 		set selectedTracks to selection
 		repeat with f in selectedTracks
-			set fmetadata to {art:(artist of f), n:(name of f), alb:(album of f)}
+			set genre of f to "Podcast"
+			set fmetadata to {art:(artist of f), n:(name of f), alb:(album of f), comm:(comment of f)}
 			set fl to location of f
-			set fPOSIX to quoted form of POSIX path of fl
-			log fPOSIX
-			tell application "Finder"
-				set text item delimiters of AppleScript to "."
-				set fn to text items 1 through -2 of (name of fl as string) as string
-				set text item delimiters of AppleScript to ""
-			end tell
-			my fast(fPOSIX)
-			--vvv I am skipping the intermediate wav format an compressing straight to mp3
-			--my compress(fPOSIX, fmetadata)
+			-- get fmetadata
+			set fastreturn to my fastPipe(fl, fmetadata)
+			do shell script theid3cp & " " & quoted form of POSIX path of fl & " " & quoted form of POSIX path of fastreturn
+			set enabled of f to false
 		end repeat
+		
 	end tell
 end run
 
@@ -34,55 +31,34 @@ on checkcmd(avar)
 	do shell script "pwd;which " & avar
 end checkcmd
 
-on fast(f)
-	--/usr/local/bin/sox "{}" -t wav "{}.wav" stretch 0.5 100
-	--/usr/local/bin/sox "{}" -t wav "{}.wav" tempo 1.8
-	global thesox, fn
-	-- set thesoxcmd to thesox & " " & f & " -t .wav " & quoted form of (oggfolder & fn & ".wav") & " stretch 0.6 100"
-	set thesoxcmd to thesox & " " & f & " -t ." & outputformat & " " & quoted form of (oggfolder & fn & "." & outputformat) & " tempo 1.8 30"
-	do shell script thesoxcmd
-	--log thesoxcmd
-end fast
-
-on compress(f, m)
-	--oggenc -q 1 --downmix --resample 16000 "{}.wav" -o "{}.ogg"
-	global theogg, fn
-	set theoggcmd to theogg & " -q 1 --downmix --resample 16000 -t " & Â
-		(quoted form of n of m) & " -a " & (quoted form of art of m) & " -l " & (quoted form of alb of m) & Â
-		" " & quoted form of (oggfolder & fn & ".wav") & " -o " & quoted form of (oggfolder & fn & ".ogg") & " &> " & quoted form of (oggfolder & "error") & "  &"
-	--log theoggcmd
-	do shell script theoggcmd
-end compress
-
 ------=====================================================---------------------------
 
-on fastPipe(fPOSIX)
-	global thesox, fn
-	set thesoxcmd to thesox & " " & fPOSIX & " - tempo 1.8 30"
-	do shell script thesoxcmd & " | " & compressOgg(fPOSIX, fmetadata) & " &"
-	--log thesoxcmd
+-- returns a file reference of the fastened track
+on fastPipe(fl, fmetadata)
+	set fPOSIX to quoted form of POSIX path of fl
+	set outputfile to (outfolder & getFileBasename(fl) & "." & outputformat)
+	set thesoxcmd to thesox & " " & fPOSIX & " -t .wav - compand 0.3,1 6:-70,-60,-20 -5 -90 0.2 tempo -s 1.5 dither "
+	set thecompresscommand to compressLame(fl, fmetadata)
+	do shell script thesoxcmd & " | " & thecompresscommand & " &"
+	log thesoxcmd & " | " & thecompresscommand & " &"
+	return POSIX file outputfile
 end fastPipe
 
-on compressOgg(f, m)
-	--oggenc -q 1 --downmix --resample 16000 "{}.wav" -o "{}.ogg"
-	set theoggcmd to theogg & " -q 1 --downmix --resample 16000 -t " & (quoted form of n of m) & Â
-		" -a " & (quoted form of art of m) & " -l " & (quoted form of alb of m) & Â
-		" - -o " & quoted form of (outfolder & fn & ".ogg") & " &> " & quoted form of (outfolder & "error")
-	--log theoggcmd
-end compressOgg
+
+
+on getFileBasename(fl)
+	tell application "Finder"
+		set text item delimiters of AppleScript to "."
+		set fn to text items 1 through -2 of (name of fl as string) as string
+		set text item delimiters of AppleScript to ""
+	end tell
+	return fn
+end getFileBasename
 
 on compressLame(f, m)
-	set thelamecmd to thelame & " -B 64 --tt " & (quoted form of n of m) & Â
+	set outputpath to quoted form of (outfolder & getFileBasename(f) & "." & outputformat)
+	set thelamecmd to thelame & " -V 7 --id3v2-utf16 --tt " & (quoted form of n of m) & Â
 		" --ta " & (quoted form of art of m) & " --tl " & (quoted form of alb of m) & Â
-		" - " & quoted form of (outfolder & fn & ".mp3")
-	--log theoggcmd
+		" - " & outputpath
 end compressLame
-
-
-
-(*
-New sox 14.0.1 deprecates stretch, and new command and going to mp3 in one command is
-sox "080222soil.mp3" "080222soil-FAST.mp3" tempo 2 30
-*)
-
 
