@@ -1,0 +1,1 @@
+implemented git hook to compile script and place it in the itunes script loaction on commit
