@@ -32,7 +32,7 @@ on run
 			set p to my getparentfoldername(f)
 			set genre of t to "Podcast"
 			if album of t is "" then set album of t to p
-			if artist of t is "" then set album of t to p
+			if artist of t is "" then set artist of t to p
 			set metadata to {art:(artist of t), n:(name of t), alb:(album of t), comm:(comment of t)}
 			my processfile(f, metadata)
 			set enabled of t to false
