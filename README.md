@@ -1,7 +1,15 @@
 #Work in progress. Use at your own risk
 
-post commit hook to compile script and place output in your iTunes Scripts folder
+An ApplesScript that speeds up tracks and applies compression to improve listenability of files with low audio levels.
+
+Dependencies:
+
+* sox
+* lame
+* id3lib
+
+Add this post commit hook to compile script and place output in your iTunes Scripts folder
 
 ``` Shell
-osacompile -o make\ fast.scpt make\ fast.applescript && mv make\ fast.scpt ~/Library/iTunes/Scripts/
+osacompile -o make\ fast.app make\ fast.applescript && mv make\ fast.app ~/Library/iTunes/Scripts/
 ```
