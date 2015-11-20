@@ -7,9 +7,10 @@ Dependencies:
 * sox
 * lame
 * id3lib
+* eyeD3
 
 Add this post commit hook to compile script and place output in your iTunes Scripts folder
 
 ``` Shell
-osacompile -o make\ fast.app make\ fast.applescript && mv make\ fast.app ~/Library/iTunes/Scripts/
+osacompile -o make\ fast.app make\ fast.applescript && mv -f make\ fast.app ~/Library/iTunes/Scripts/make\ fast.app
 ```

@@ -20,7 +20,7 @@ property outfolder : "/Users/jeff/Music/Fastened/"
 property outputformat : "mp3"
 
 # declare global paths to executables
-global sox, lame, id3cp
+global sox, lame, id3cp, eyeD3
 
 on run
 	preflight()
@@ -64,7 +64,7 @@ on processfile(f, metadata)
 		get name extension of f
 	end tell
 	set fileInfo to {fileRef:f, POSIXpath:quoted form of POSIX path of f}
-	--set fPOSIX to fPOSIXstring as POSIX file
+	fixID3v24(POSIXpath of fileInfo)
 	set fastened to fasten(fileInfo, metadata)
 	copyID3 from (POSIXpath of fileInfo) to (quoted form of POSIX path of fastened)
 end processfile
@@ -76,7 +76,7 @@ on fasten(fileInfo, fMetadata)
 	--error outputfile
 	set thesoxcmd to sox & " " & (POSIXpath of fileInfo) & " -t raw -r 32k -e signed-integer -c 2 - compand 0.3,1 6:-70,-60,-20 -5 -90 0.2 tempo -s 1.5 dither "
 	set thecompresscommand to compressLame(fMetadata)
-	set fullcommand to thesoxcmd & " | " & thecompresscommand & " > " & quoted form of outputfile
+	set fullcommand to thesoxcmd & " | " & thecompresscommand & quoted form of outputfile
 	log fullcommand
 	do shell script fullcommand
 	return POSIX file outputfile
@@ -86,13 +86,16 @@ to copyID3 from f to o
 	do shell script id3cp & " " & f & " " & o
 end copyID3
 
-
+on fixID3v24(f)
+	do shell script eyeD3 & " -Q --to-v2.3 " & f
+end fixID3v24
 
 on preflight()
 	log "preflight starting"
 	set lame to checkcmd("lame")
 	set id3cp to checkcmd("id3cp")
 	set sox to checkcmd("sox")
+	set eyeD3 to checkcmd("eyeD3")
 	log "preflight done"
 end preflight
 
@@ -110,6 +113,6 @@ on compressLame(m)
 	--set outputpath to quoted form of (outfolder & getFileBasename(f) & "." & outputformat)
 	set thelamecmd to lame & " -r -s 32 -V 7 --id3v2-utf16 --tt " & (quoted form of n of m) & Â
 		" --ta " & (quoted form of art of m) & " --tl " & (quoted form of alb of m) & Â
-		" - -"
+		" - "
 end compressLame
 
