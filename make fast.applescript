@@ -13,8 +13,8 @@ property additionalCommandLocation : "/usr/local/bin"
 # Put the location you wish for the fastened files to go to. 
 # TODO: Currently there is no check protecting from filename clobbering
 # TODO: Have script prompt for this if not defined
---property outfolder : choose folder with prompt "Where would you like to save the processed files?" default location path to music folder
-property outfolder : "/Users/jeff/Music/Fastened/"
+--property outputfolder : choose folder with prompt "Where would you like to save the processed files?" default location path to music folder
+property outputfolder : "/Users/jeff/Music/Fastened/"
 
 # Default output format. Currently only mp3 is supported
 property outputformat : "mp3"
@@ -25,7 +25,7 @@ global sox, lame, id3cp, eyeD3
 on run
 	preflight()
 	tell application "iTunes"
-		local selectedTracks, f, metadata
+		local selectedTracks, t, f, p, metadata
 		set selectedTracks to selection
 		repeat with t in selectedTracks
 			set f to location of t
@@ -60,9 +60,6 @@ end checkcmd
 ------============================================----------
 
 on processfile(f, metadata)
-	tell application "Finder"
-		get name extension of f
-	end tell
 	set fileInfo to {fileRef:f, POSIXpath:quoted form of POSIX path of f}
 	fixID3v24(POSIXpath of fileInfo)
 	set fastened to fasten(fileInfo, metadata)
@@ -72,10 +69,9 @@ end processfile
 
 -- returns a file reference of the fastened track
 on fasten(fileInfo, fMetadata)
-	set outputfile to (outfolder & getFileBasename(fileRef of fileInfo) & "." & outputformat)
-	--error outputfile
+	set outputfile to (outfolder & getfilebasename(fileRef of fileInfo) & "." & outputformat)
 	set thesoxcmd to sox & " " & (POSIXpath of fileInfo) & " -t raw -r 32k -e signed-integer -c 2 - compand 0.3,1 6:-70,-60,-20 -5 -90 0.2 tempo -s 1.5 dither "
-	set thecompresscommand to compressLame(fMetadata)
+	set thecompresscommand to compresslame(fMetadata)
 	set fullcommand to thesoxcmd & " | " & thecompresscommand & quoted form of outputfile
 	log fullcommand
 	do shell script fullcommand
@@ -99,20 +95,19 @@ on preflight()
 	log "preflight done"
 end preflight
 
-on getFileBasename(f)
+on getfilebasename(f)
 	tell application "Finder"
+		get name extension of f
 		set text item delimiters of AppleScript to "."
-		-- return f
 		set fn to text items 1 through -2 of (name of f as string) as string
 		set text item delimiters of AppleScript to ""
 	end tell
 	return fn
-end getFileBasename
+end getfilebasename
 
-on compressLame(m)
-	--set outputpath to quoted form of (outfolder & getFileBasename(f) & "." & outputformat)
+on compresslame(m)
 	set thelamecmd to lame & " -r -s 32 -V 7 --id3v2-utf16 --tt " & (quoted form of n of m) & Â
 		" --ta " & (quoted form of art of m) & " --tl " & (quoted form of alb of m) & Â
 		" - "
-end compressLame
+end compresslame
 
