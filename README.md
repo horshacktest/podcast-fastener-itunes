@@ -1,4 +1,3 @@
-#Work in progress. Use at your own risk
 
 An ApplesScript that speeds up tracks and applies compression to improve listenability of files with low audio levels.
 
