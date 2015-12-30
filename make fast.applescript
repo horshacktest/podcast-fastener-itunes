@@ -69,7 +69,7 @@ end processfile
 
 -- returns a file reference of the fastened track
 on fasten(fileInfo, fMetadata)
-	set outputfile to (outfolder & getfilebasename(fileRef of fileInfo) & "." & outputformat)
+	set outputfile to (outputfolder & getfilebasename(fileRef of fileInfo) & "." & outputformat)
 	set thesoxcmd to sox & " " & (POSIXpath of fileInfo) & " -t raw -r 32k -e signed-integer -c 2 - compand 0.3,1 6:-70,-60,-20 -5 -90 0.2 tempo -s 1.5 dither "
 	set thecompresscommand to compresslame(fMetadata)
 	set fullcommand to thesoxcmd & " | " & thecompresscommand & quoted form of outputfile
@@ -106,7 +106,7 @@ on getfilebasename(f)
 end getfilebasename
 
 on compresslame(m)
-	set thelamecmd to lame & " -r -s 32 -V 7 --id3v2-utf16 --tt " & (quoted form of n of m) & Â
+	set thelamecmd to lame & " -r -s 32 -V 7 --tt " & (quoted form of n of m) & Â
 		" --ta " & (quoted form of art of m) & " --tl " & (quoted form of alb of m) & Â
 		" - "
 end compresslame
