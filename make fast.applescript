@@ -61,7 +61,7 @@ end checkcmd
 
 on processfile(f, metadata)
 	set fileInfo to {fileRef:f, POSIXpath:quoted form of POSIX path of f}
-	fixID3v24(POSIXpath of fileInfo)
+	--fixID3v24(POSIXpath of fileInfo)
 	set fastened to fasten(fileInfo, metadata)
 	copyID3 from (POSIXpath of fileInfo) to (quoted form of POSIX path of fastened)
 end processfile
