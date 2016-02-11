@@ -79,7 +79,7 @@ on fasten(fileInfo, fMetadata)
 end fasten
 
 to copyID3 from f to o
-	do shell script id3cp & " " & f & " " & o
+	do shell script id3cp & " -2 " & f & " " & o
 end copyID3
 
 on fixID3v24(f)
@@ -106,7 +106,7 @@ on getfilebasename(f)
 end getfilebasename
 
 on compresslame(m)
-	set thelamecmd to lame & " -r -s 32 -V 7 --tt " & (quoted form of n of m) & Â
+	set thelamecmd to lame & " -r -s 32 -V 7 --id3v2-only --tt " & (quoted form of n of m) & Â
 		" --ta " & (quoted form of art of m) & " --tl " & (quoted form of alb of m) & Â
 		" - "
 end compresslame
