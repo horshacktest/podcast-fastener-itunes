@@ -20,7 +20,7 @@ property outputfolder : "/Users/jeff/Music/Fastened/"
 property outputformat : "mp3"
 
 # declare global paths to executables
-global sox, lame, id3cp, eyeD3
+global sox, lame, id3cp, id3tag, eyeD3
 
 on run
 	preflight()
@@ -62,6 +62,7 @@ end checkcmd
 on processfile(f, metadata)
 	set fileInfo to {fileRef:f, POSIXpath:quoted form of POSIX path of f}
 	--fixID3v24(POSIXpath of fileInfo)
+	fixBlankSongName(n of metadata, POSIXpath of fileInfo)
 	set fastened to fasten(fileInfo, metadata)
 	copyID3 from (POSIXpath of fileInfo) to (quoted form of POSIX path of fastened)
 end processfile
@@ -88,10 +89,16 @@ on fixID3v24(f)
 	do shell script eyeD3 & " -Q --to-v2.3 " & f
 end fixID3v24
 
+on fixBlankSongName(trackname, tracklocation)
+	do shell script "/usr/local/bin/id3tag -2 -s" & trackname & " " & tracklocation
+end fixBlankSongName
+
+
 on preflight()
 	log "preflight starting"
 	set lame to checkcmd("lame")
 	set id3cp to checkcmd("id3cp")
+	set id3tag to checkcmd("id3tag")
 	set sox to checkcmd("sox")
 	set eyeD3 to checkcmd("eyeD3")
 	log "preflight done"
