@@ -62,7 +62,7 @@ end checkcmd
 on processfile(f, metadata)
 	set fileInfo to {fileRef:f, POSIXpath:quoted form of POSIX path of f}
 	--fixID3v24(POSIXpath of fileInfo)
-	fixBlankSongName(n of metadata, POSIXpath of fileInfo)
+	--fixBlankSongName(quoted form of (n of metadata), POSIXpath of fileInfo)
 	set fastened to fasten(fileInfo, metadata)
 	copyID3 from (POSIXpath of fileInfo) to (quoted form of POSIX path of fastened)
 end processfile
@@ -90,6 +90,9 @@ on fixID3v24(f)
 end fixID3v24
 
 on fixBlankSongName(trackname, tracklocation)
+	--NOTE: if iTunes is not managing files in the iTunes library location, files 
+	--do not get renamed to their id3 song name. So my idea that this would be a noop 
+	--for files having names is inaccurate. 
 	do shell script "/usr/local/bin/id3tag -2 -s" & trackname & " " & tracklocation
 end fixBlankSongName
 
