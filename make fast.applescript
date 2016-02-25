@@ -64,7 +64,7 @@ on processfile(f, metadata)
 	--fixID3v24(POSIXpath of fileInfo)
 	--fixBlankSongName(quoted form of (n of metadata), POSIXpath of fileInfo)
 	set fastened to fasten(fileInfo, metadata)
-	copyID3 from (POSIXpath of fileInfo) to (quoted form of POSIX path of fastened)
+	--copyID3 from (POSIXpath of fileInfo) to (quoted form of POSIX path of fastened)
 end processfile
 
 
@@ -120,7 +120,7 @@ end getfilebasename
 on compresslame(m)
 	--NOTE: lame writes id3v2.3 tags
 	set thelamecmd to lame & " -r -s 32 -V 7 --id3v2-only --tt " & (quoted form of n of m) & Â
-		" --ta " & (quoted form of art of m) & " --tl " & (quoted form of alb of m) & Â
+		" --ta " & (quoted form of art of m) & " --tl " & (quoted form of alb of m) & " --tg Podcast" &Â
 		" - "
 end compresslame
 
