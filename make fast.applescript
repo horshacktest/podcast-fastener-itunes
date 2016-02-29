@@ -17,33 +17,203 @@ property additionalCommandLocation : "/usr/local/bin"
 property outputfolder : "/Users/jeff/Music/Fastened/"
 
 # Default output format. Currently only mp3 is supported
-property outputformat : "mp3"
+property outputformat : ".mp3"
 
 # declare global paths to executables
-global sox, lame, id3cp, id3tag, eyeD3
+global sox, lame
 
 on run
 	preflight()
 	tell application "iTunes"
-		local selectedTracks, t, f, p, metadata
+		local sourceFile, itunesTrack, selectedTracks, trackData
 		set selectedTracks to selection
-		repeat with t in selectedTracks
-			set f to location of t
-			set p to my getparentfoldername(f)
-			set genre of t to "Podcast"
-			if album of t is "" then set album of t to p
-			if artist of t is "" then set artist of t to p
-			set metadata to {art:(artist of t), n:(name of t), alb:(album of t), comm:(comment of t)}
-			my processfile(f, metadata)
-			set enabled of t to false
+		repeat with itunesTrack in selectedTracks
+			my fixupiTunesMetadata(itunesTrack)
+			--create data object
+			set sourceFile to location of itunesTrack
+			set trackData to {sourcePath:"", destinationPath:"", metadata:{}, artworkpath:""}
+			set sourcePath of trackData to POSIX path of sourceFile
+			set destinationPath of trackData to outputfolder & my getfilebasename(sourceFile) & outputformat
+			set metadata of trackData to {art:(artist of itunesTrack), title:(name of itunesTrack), alb:(album of itunesTrack), comm:(comment of itunesTrack), tracknum:(track number of itunesTrack), yr:(year of itunesTrack)}
+			-- handle artwork logic
+			set artworkpath of trackData to my getPathToArtworkFile(itunesTrack)
+			get trackData
+			--do the work
+			my fasten(trackData)
+			set enabled of itunesTrack to false
+			--cleanup artwork file
 		end repeat
 		
 	end tell
 end run
 
-on getparentfoldername(f)
+-- ARTWORK STUFF -------------------------------------
+on getPathToArtworkFile(itunesTrack)
+	local artworkpath
+	set artworkpath to dumpArtworkToFile(itunesTrack)
+	if artworkpath is not "" then
+		return artworkpath
+	end if
+	set artworkpath to resolveDefaultArtwork(itunesTrack)
+	if artworkpath is not "" then
+		return artworkpath
+	end if
+	-- no file found
+	return ""
+end getPathToArtworkFile
+
+on checkForTrackArtwork(itunesTrack)
+	tell application "iTunes"
+		if (count of artworks in itunesTrack) is greater than 0 then
+			return first artwork of itunesTrack
+		else
+			return false
+		end if
+	end tell
+end checkForTrackArtwork
+
+on getArtworkDataFormat(art)
+	tell application "iTunes"
+		if format of art is Çclass PNG È then
+			return {mime:"image/png", ext:".png"}
+		else if format of art is JPEG picture then
+			return {mime:"image/jpeg", ext:".jpg"}
+		end if
+	end tell
+end getArtworkDataFormat
+
+on dumpArtworkToFile(itunesTrack)
+	set art to checkForTrackArtwork(itunesTrack)
+	if art is not false then
+		return dumpArtworkToFileUsingiTunes(itunesTrack, art)
+	else
+		return ""
+	end if
+end dumpArtworkToFile
+
+--@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+on resolveDefaultArtwork(itunesTrack)
+	local loc, currentFolder, defaultArt
+	tell application "iTunes"
+		set loc to location of itunesTrack
+	end tell
+	tell application "System Events"
+		set currentFolder to path of container of loc
+		try
+			set defaultArt to POSIX path of file (currentFolder & "albumart.jpg")
+		on error
+			try
+				set defaultArt to POSIX path of file (currentFolder & "albumart.png")
+			on error
+				set defaultArt to ""
+			end try
+		end try
+	end tell
+	return defaultArt
+end resolveDefaultArtwork
+
+on dumpArtworkToFileUsingiTunes(itunesTrack, art)
+	local loc, ppath, pic, destinationPath, destination, filehandle
+	tell application "iTunes"
+		set loc to location of itunesTrack
+		set pic to data of art
+	end tell
 	tell application "Finder"
-		return name of parent of f
+		set destinationPath to (loc as text) & ext of my getArtworkDataFormat(art)
+		set destination to a reference to file destinationPath
+	end tell
+	set filehandle to open for access destination with write permission
+	write pic to filehandle
+	close access filehandle
+	return POSIX path of (destinationPath)
+end dumpArtworkToFileUsingiTunes
+
+on dumpArtworkToFileUsingMediainfo(source, destination)
+	do shell script "/usr/local/bin/mediainfo --Output=General\\;%Cover_Data% " & source & " | base64 -D > " & destination
+	return destination
+end dumpArtworkToFileUsingMediainfo
+
+
+
+------============================================----------
+
+on fixupiTunesMetadata(itunesTrack)
+	local parentFolder
+	tell application "iTunes"
+		set parentFolder to my getparentfoldername(location of itunesTrack)
+		set genre of itunesTrack to "Podcast"
+		if album of itunesTrack is "" then set album of itunesTrack to parentFolder
+		if artist of itunesTrack is "" then set artist of itunesTrack to parentFolder
+	end tell
+end fixupiTunesMetadata
+
+on fasten(trackData)
+	set inputfile to quoted form of (sourcePath of trackData)
+	set outputfile to quoted form of (destinationPath of trackData)
+	set thesoxcmd to sox & " " & inputfile & " -t raw -r 32k -e signed-integer -c 2 - compand 0.3,1 6:-70,-60,-20 -5 -90 0.2 tempo -s 1.5 dither "
+	--log thesoxcmd
+	set thecompresscommand to buildLameCommand(trackData)
+	--log thecompresscommand
+	set fullcommand to thesoxcmd & " | " & thecompresscommand & outputfile
+	log fullcommand
+	do shell script fullcommand
+end fasten
+
+on buildLameCommand(trackData)
+	local formatoptions, id3options
+	--NOTE: lame writes id3v2.3 tags
+	set formatoptions to " -r -s 32 -V 7 "
+	set id3options to " --id3v2-only " & buildLameId3Options(trackData)
+	set thelamecmd to lame & formatoptions & id3options & " - "
+end buildLameCommand
+
+on buildLameId3Options(trackData)
+	local m, tt, ta, tl, tg, ty, tn, tc, ti
+	set m to metadata of trackData
+	set tt to " --tt " & (quoted form of title of m)
+	set ta to " --ta " & (quoted form of art of m)
+	set tl to " --tl " & (quoted form of alb of m)
+	set tg to " --tg Podcast"
+	if yr of m is not "" then
+		set ty to " --ty " & (yr of m)
+	else
+		set ty to ""
+	end if
+	if tracknum of m is not 0 then
+		set tn to " --tn " & (tracknum of m)
+	else
+		set tn to ""
+	end if
+	set tc to " --tc " & (quoted form of comm of m)
+	if artworkpath of trackData is not "" then
+		set ti to " --ti " & (quoted form of artworkpath of trackData)
+	else
+		set ti to ""
+	end if
+	
+	return tt & ta & tl & tg & ty & tn & tc & ti
+end buildLameId3Options
+
+on preflight()
+	log "preflight starting"
+	set lame to checkcmd("lame")
+	set sox to checkcmd("sox")
+	log "preflight done"
+end preflight
+
+on getfilebasename(filealias)
+	tell application "Finder"
+		get name extension of filealias
+		set text item delimiters of AppleScript to "."
+		set basename to text items 1 through -2 of (name of filealias as string) as string
+		set text item delimiters of AppleScript to ""
+	end tell
+	return basename
+end getfilebasename
+
+on getparentfoldername(filealias)
+	tell application "Finder"
+		return name of parent of filealias
 	end tell
 end getparentfoldername
 
@@ -56,71 +226,3 @@ on checkcmd(cmd)
 		error
 	end try
 end checkcmd
-
-------============================================----------
-
-on processfile(f, metadata)
-	set fileInfo to {fileRef:f, POSIXpath:quoted form of POSIX path of f}
-	--fixID3v24(POSIXpath of fileInfo)
-	--fixBlankSongName(quoted form of (n of metadata), POSIXpath of fileInfo)
-	set fastened to fasten(fileInfo, metadata)
-	--copyID3 from (POSIXpath of fileInfo) to (quoted form of POSIX path of fastened)
-end processfile
-
-
--- returns a file reference of the fastened track
-on fasten(fileInfo, fMetadata)
-	set outputfile to (outputfolder & getfilebasename(fileRef of fileInfo) & "." & outputformat)
-	set thesoxcmd to sox & " " & (POSIXpath of fileInfo) & " -t raw -r 32k -e signed-integer -c 2 - compand 0.3,1 6:-70,-60,-20 -5 -90 0.2 tempo -s 1.5 dither "
-	set thecompresscommand to compresslame(fMetadata)
-	set fullcommand to thesoxcmd & " | " & thecompresscommand & quoted form of outputfile
-	log fullcommand
-	do shell script fullcommand
-	return POSIX file outputfile
-end fasten
-
-to copyID3 from f to o
-	-- NOTE: id3cp does not seem to copy v2.4 tags
-	do shell script id3cp & " -2 " & f & " " & o
-end copyID3
-
-on fixID3v24(f)
-	--NOTE: crashes when trying to convert "Functional Geekery Podcast"
-	do shell script eyeD3 & " -Q --to-v2.3 " & f
-end fixID3v24
-
-on fixBlankSongName(trackname, tracklocation)
-	--NOTE: if iTunes is not managing files in the iTunes library location, files 
-	--do not get renamed to their id3 song name. So my idea that this would be a noop 
-	--for files having names is inaccurate. 
-	do shell script "/usr/local/bin/id3tag -2 -s" & trackname & " " & tracklocation
-end fixBlankSongName
-
-
-on preflight()
-	log "preflight starting"
-	set lame to checkcmd("lame")
-	set id3cp to checkcmd("id3cp")
-	set id3tag to checkcmd("id3tag")
-	set sox to checkcmd("sox")
-	set eyeD3 to checkcmd("eyeD3")
-	log "preflight done"
-end preflight
-
-on getfilebasename(f)
-	tell application "Finder"
-		get name extension of f
-		set text item delimiters of AppleScript to "."
-		set fn to text items 1 through -2 of (name of f as string) as string
-		set text item delimiters of AppleScript to ""
-	end tell
-	return fn
-end getfilebasename
-
-on compresslame(m)
-	--NOTE: lame writes id3v2.3 tags
-	set thelamecmd to lame & " -r -s 32 -V 7 --id3v2-only --tt " & (quoted form of n of m) & Â
-		" --ta " & (quoted form of art of m) & " --tl " & (quoted form of alb of m) & " --tg Podcast" &Â
-		" - "
-end compresslame
-
