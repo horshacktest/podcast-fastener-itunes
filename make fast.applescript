@@ -148,16 +148,25 @@ on fixupiTunesMetadata(itunesTrack)
 end fixupiTunesMetadata
 
 on fasten(trackData)
+	local inputfile, outputfile, thesoxcommand, thecompresscommand, fullcommand
 	set inputfile to quoted form of (sourcePath of trackData)
 	set outputfile to quoted form of (destinationPath of trackData)
-	set thesoxcmd to sox & " " & inputfile & " -t raw -r 32k -e signed-integer -c 2 - compand 0.3,1 6:-70,-60,-20 -5 -90 0.2 tempo -s 1.5 dither "
-	--log thesoxcmd
+	set thesoxcommand to buildSoxCommand(inputfile, 1.7)
+	--log thesoxcommand
 	set thecompresscommand to buildLameCommand(trackData)
 	--log thecompresscommand
-	set fullcommand to thesoxcmd & " | " & thecompresscommand & outputfile
+	set fullcommand to thesoxcommand & " | " & thecompresscommand & outputfile
 	log fullcommand
 	do shell script fullcommand
 end fasten
+
+on buildSoxCommand(inputfile, tempofactor)
+	local formatoptions, dynamicrangeoptions, tempooptions, thesoxcommand
+	set formatoptions to " " & inputfile & " -t raw -r 32k -e signed-integer -c 2 - "
+	set dynamicrangeoptions to " compand 0.3,1 6:-70,-60,-20 -5 -90 0.2 "
+	set tempooptions to " tempo -s " & tempofactor & " dither "
+	set thesoxcommand to sox & formatoptions & dynamicrangeoptions & tempooptions
+end buildSoxCommand
 
 on buildLameCommand(trackData)
 	local formatoptions, id3options
@@ -184,7 +193,11 @@ on buildLameId3Options(trackData)
 	else
 		set tn to ""
 	end if
-	set tc to " --tc " & (quoted form of comm of m)
+	if comm of m is not "" then
+		set tc to " --tc " & (quoted form of comm of m)
+	else
+		set tc to ""
+	end if
 	if artworkpath of trackData is not "" then
 		set ti to " --ti " & (quoted form of artworkpath of trackData)
 	else
