@@ -11,10 +11,8 @@ http://stackoverflow.com/questions/25385934/setting-environment-variables-via-la
 property additionalCommandLocation : "/usr/local/bin"
 
 # Put the location you wish for the fastened files to go to. 
-# TODO: Currently there is no check protecting from filename clobbering
-# TODO: Have script prompt for this if not defined
---property outputfolder : choose folder with prompt "Where would you like to save the processed files?" default location path to music folder
-property outputfolder : "/Users/jeff/Music/Fastened/"
+# TODO: Currently there is no check protecting from filename clobbering in the destination path
+property outputfolder : choose folder with prompt "Where would you like to save the processed files?" default location path to music folder
 
 # Default output format. Currently only mp3 is supported
 property outputformat : ".mp3"
