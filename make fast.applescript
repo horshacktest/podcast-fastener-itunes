@@ -13,6 +13,7 @@ property additionalCommandLocation : "/usr/local/bin"
 # Put the location you wish for the fastened files to go to. 
 # TODO: Currently there is no check protecting from filename clobbering in the destination path
 property outputfolder : choose folder with prompt "Where would you like to save the processed files?" default location path to music folder
+#property outputfolder : path to music folder
 
 # Default output format. Currently only mp3 is supported
 property outputformat : ".mp3"
@@ -31,7 +32,7 @@ on run
 			set sourceFile to location of itunesTrack
 			set trackData to {sourcePath:"", destinationPath:"", metadata:{}, artworkpath:""}
 			set sourcePath of trackData to POSIX path of sourceFile
-			set destinationPath of trackData to outputfolder & my getfilebasename(sourceFile) & outputformat
+			set destinationPath of trackData to POSIX path of outputfolder & my getfilebasename(sourceFile) & outputformat
 			set metadata of trackData to {art:(artist of itunesTrack), title:(name of itunesTrack), alb:(album of itunesTrack), comm:(comment of itunesTrack), tracknum:(track number of itunesTrack), yr:(year of itunesTrack)}
 			-- handle artwork logic
 			set artworkpath of trackData to my getPathToArtworkFile(itunesTrack)
@@ -48,10 +49,13 @@ end run
 -- ARTWORK STUFF -------------------------------------
 on getPathToArtworkFile(itunesTrack)
 	local artworkpath
+	-- First try to extract artwork from the actual track.
+	-- Try this first because some pods have unique ablumart for each episode.
 	set artworkpath to dumpArtworkToFile(itunesTrack)
 	if artworkpath is not "" then
 		return artworkpath
 	end if
+	-- Next try to get the path of the default albumart
 	set artworkpath to resolveDefaultArtwork(itunesTrack)
 	if artworkpath is not "" then
 		return artworkpath
@@ -170,7 +174,7 @@ on buildLameCommand(trackData)
 	local formatoptions, id3options
 	--NOTE: lame writes id3v2.3 tags
 	set formatoptions to " -r -s 32 -V 7 "
-	set id3options to " --id3v2-only " & buildLameId3Options(trackData)
+	set id3options to buildLameId3Options(trackData)
 	set thelamecmd to lame & formatoptions & id3options & " - "
 end buildLameCommand
 
@@ -196,7 +200,7 @@ on buildLameId3Options(trackData)
 	else
 		set tc to ""
 	end if
-	if artworkpath of trackData is not "" then
+	if artworkpath of trackData is not "" then	
 		set ti to " --ti " & (quoted form of artworkpath of trackData)
 	else
 		set ti to ""
