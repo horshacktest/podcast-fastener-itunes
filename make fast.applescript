@@ -36,33 +36,83 @@ on run
 			set metadata of trackData to {art:(artist of itunesTrack), title:(name of itunesTrack), alb:(album of itunesTrack), comm:(comment of itunesTrack), tracknum:(track number of itunesTrack), yr:(year of itunesTrack)}
 			-- handle artwork logic
 			set artworkpath of trackData to my getPathToArtworkFile(itunesTrack)
-			get trackData
+			--get trackData
 			--do the work
 			my fasten(trackData)
 			set enabled of itunesTrack to false
-			--cleanup artwork file
+			-- TODO cleanup artwork file
 		end repeat
 		
 	end tell
 end run
 
 -- ARTWORK STUFF -------------------------------------
+-- this is entry function for artwork resolution
 on getPathToArtworkFile(itunesTrack)
-	local artworkpath
-	-- First try to extract artwork from the actual track.
-	-- Try this first because some pods have unique ablumart for each episode.
-	set artworkpath to dumpArtworkToFile(itunesTrack)
-	if artworkpath is not "" then
-		return artworkpath
+	-- declare local vars for complete POSIX path to artwork image, parent folder file alias, track file alias
+	local artworkpath, parentFolderAlias, itunesTrackFileAlias
+	tell application "iTunes"
+		set itunesTrackFileAlias to location of itunesTrack
+	end tell
+	tell application "System Events"
+		set parentFolderAlias to container of itunesTrackFileAlias
+	end tell
+	
+	-- First try setting artwork to the override if it exists
+	set artworkpath to getOverrideArtworkPath(parentFolderAlias)
+	
+	-- Next try to extract artwork from the actual track.
+	-- Try this because some pods have unique ablumart for each episode.
+	if artworkpath is "" then
+		set artworkpath to dumpArtworkToFile(itunesTrack)
 	end if
-	-- Next try to get the path of the default albumart
-	set artworkpath to resolveDefaultArtwork(itunesTrack)
-	if artworkpath is not "" then
-		return artworkpath
+	
+	-- Last try to get the path of the default albumart
+	-- TODO change the parameter to pass the parent, that's all that's needed
+	if artworkpath is "" then
+		set artworkpath to checkDefaultArtwork(itunesTrack)
 	end if
-	-- no file found
-	return ""
+	return artworkpath
 end getPathToArtworkFile
+
+
+--@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+-- artwork files in the folder named default.jpg will take precedence over
+-- all other artwork. (over albumart.png, albumart.jpg and embedded art)
+
+on getOverrideArtworkPath(parentFolderAlias)
+	local overrideArt
+	try
+		set overrideArt to POSIX path of alias (path of parentFolderAlias & "default.jpg")
+	on error
+		set overrideArt to ""
+	end try
+	return overrideArt
+end getOverrideArtworkPath
+
+
+on checkDefaultArtwork(itunesTrack)
+	local loc, currentFolder, defaultArt
+	tell application "iTunes"
+		set loc to location of itunesTrack
+	end tell
+	tell application "System Events"
+		set currentFolder to path of container of loc
+		try
+			set defaultArt to POSIX path of file (currentFolder & "albumart.jpg")
+		on error
+			try
+				set defaultArt to POSIX path of file (currentFolder & "albumart.png")
+			on error
+				set defaultArt to ""
+			end try
+		end try
+	end tell
+	return defaultArt
+end checkDefaultArtwork
+
+--@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+--@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
 on checkForTrackArtwork(itunesTrack)
 	tell application "iTunes"
@@ -93,29 +143,9 @@ on dumpArtworkToFile(itunesTrack)
 	end if
 end dumpArtworkToFile
 
---@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-on resolveDefaultArtwork(itunesTrack)
-	local loc, currentFolder, defaultArt
-	tell application "iTunes"
-		set loc to location of itunesTrack
-	end tell
-	tell application "System Events"
-		set currentFolder to path of container of loc
-		try
-			set defaultArt to POSIX path of file (currentFolder & "albumart.jpg")
-		on error
-			try
-				set defaultArt to POSIX path of file (currentFolder & "albumart.png")
-			on error
-				set defaultArt to ""
-			end try
-		end try
-	end tell
-	return defaultArt
-end resolveDefaultArtwork
 
 on dumpArtworkToFileUsingiTunes(itunesTrack, art)
-	local loc, ppath, pic, destinationPath, destination, filehandle
+	local loc, path, pic, destinationPath, destination, filehandle
 	tell application "iTunes"
 		set loc to location of itunesTrack
 		set pic to data of art
@@ -130,22 +160,15 @@ on dumpArtworkToFileUsingiTunes(itunesTrack, art)
 	return POSIX path of (destinationPath)
 end dumpArtworkToFileUsingiTunes
 
-on dumpArtworkToFileUsingMediainfo(source, destination)
-	do shell script "/usr/local/bin/mediainfo --Output=General\\;%Cover_Data% " & source & " | base64 -D > " & destination
-	return destination
-end dumpArtworkToFileUsingMediainfo
-
-
-
 ------============================================----------
 
 on fixupiTunesMetadata(itunesTrack)
-	local parentFolder
+	local parentFolderName
 	tell application "iTunes"
-		set parentFolder to my getparentfoldername(location of itunesTrack)
+		set parentFolderName to my getparentfoldername(location of itunesTrack)
 		set genre of itunesTrack to "Podcast"
-		if album of itunesTrack is "" then set album of itunesTrack to parentFolder
-		if artist of itunesTrack is "" then set artist of itunesTrack to parentFolder
+		if album of itunesTrack is "" then set album of itunesTrack to parentFolderName
+		if artist of itunesTrack is "" then set artist of itunesTrack to parentFolderName
 	end tell
 end fixupiTunesMetadata
 
@@ -174,7 +197,7 @@ on buildLameCommand(trackData)
 	local formatoptions, id3options
 	--NOTE: lame writes id3v2.3 tags
 	set formatoptions to " -r -s 32 -V 7 "
-	set id3options to buildLameId3Options(trackData)
+	set id3options to "--id3v2-latin1 --id3v2-only " & buildLameId3Options(trackData)
 	set thelamecmd to lame & formatoptions & id3options & " - "
 end buildLameCommand
 
@@ -200,7 +223,7 @@ on buildLameId3Options(trackData)
 	else
 		set tc to ""
 	end if
-	if artworkpath of trackData is not "" then	
+	if artworkpath of trackData is not "" then
 		set ti to " --ti " & (quoted form of artworkpath of trackData)
 	else
 		set ti to ""
