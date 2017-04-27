@@ -21,45 +21,16 @@ property outputformat : ".mp3"
 # declare global paths to executables
 global sox, lame
 
-on run
-	preflight()
-	tell application "iTunes"
-		local sourceFile, itunesTrack, selectedTracks, trackData
-		set selectedTracks to selection
-		repeat with itunesTrack in selectedTracks
-			my fixupiTunesMetadata(itunesTrack)
-			--create data object
-			set sourceFile to location of itunesTrack
-			set trackData to {sourcePath:"", destinationPath:"", metadata:{}, artworkpath:""}
-			set sourcePath of trackData to POSIX path of sourceFile
-			set destinationPath of trackData to POSIX path of outputfolder & my getfilebasename(sourceFile) & outputformat
-			set metadata of trackData to {art:(artist of itunesTrack), title:(name of itunesTrack), alb:(album of itunesTrack), comm:(comment of itunesTrack), tracknum:(track number of itunesTrack), yr:(year of itunesTrack)}
-			-- handle artwork logic
-			set artworkpath of trackData to my getPathToArtworkFile(itunesTrack)
-			--get trackData
-			--do the work
-			my fasten(trackData)
-			set enabled of itunesTrack to false
-			-- TODO cleanup artwork file
-		end repeat
-		
-	end tell
-end run
-
 -- ARTWORK STUFF -------------------------------------
 -- this is entry function for artwork resolution
 on getPathToArtworkFile(itunesTrack)
 	-- declare local vars for complete POSIX path to artwork image, parent folder file alias, track file alias
-	local artworkpath, parentFolderAlias, itunesTrackFileAlias
+	local artworkpath, itunesTrackFileAlias
 	tell application "iTunes"
 		set itunesTrackFileAlias to location of itunesTrack
-	end tell
-	tell application "System Events"
-		set parentFolderAlias to container of itunesTrackFileAlias
-	end tell
-	
+	end tell	
 	-- First try setting artwork to the override if it exists
-	set artworkpath to getOverrideArtworkPath(parentFolderAlias)
+	set artworkpath to getOverrideArtworkPath(getparentfolderalias(itunesTrackFileAlias))
 	
 	-- Next try to extract artwork from the actual track.
 	-- Try this because some pods have unique ablumart for each episode.
@@ -76,10 +47,8 @@ on getPathToArtworkFile(itunesTrack)
 end getPathToArtworkFile
 
 
---@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 -- artwork files in the folder named default.jpg will take precedence over
 -- all other artwork. (over albumart.png, albumart.jpg and embedded art)
-
 on getOverrideArtworkPath(parentFolderAlias)
 	local overrideArt
 	try
@@ -249,9 +218,15 @@ on getfilebasename(filealias)
 	return basename
 end getfilebasename
 
+on getparentfolderalias(filealias)
+	tell application "Finder"
+		return parent of filealias
+	end tell
+end getparentfolderalias
+
 on getparentfoldername(filealias)
 	tell application "Finder"
-		return name of parent of filealias
+		return name of my getparentfolderalias(filealias)
 	end tell
 end getparentfoldername
 
@@ -264,3 +239,28 @@ on checkcmd(cmd)
 		error
 	end try
 end checkcmd
+
+on run
+	preflight()
+	tell application "iTunes"
+		local sourceFile, itunesTrack, selectedTracks, trackData
+		set selectedTracks to selection
+		repeat with itunesTrack in selectedTracks
+			my fixupiTunesMetadata(itunesTrack)
+			--create data object
+			set sourceFile to location of itunesTrack
+			set trackData to {sourcePath:"", destinationPath:"", metadata:{}, artworkpath:""}
+			set sourcePath of trackData to POSIX path of sourceFile
+			set destinationPath of trackData to POSIX path of outputfolder & my getfilebasename(sourceFile) & outputformat
+			set metadata of trackData to {art:(artist of itunesTrack), title:(name of itunesTrack), alb:(album of itunesTrack), comm:(comment of itunesTrack), tracknum:(track number of itunesTrack), yr:(year of itunesTrack)}
+			-- handle artwork logic
+			set artworkpath of trackData to my getPathToArtworkFile(itunesTrack)
+			--get trackData
+			--do the work
+			my fasten(trackData)
+			set enabled of itunesTrack to false
+			-- TODO cleanup artwork file
+		end repeat
+		
+	end tell
+end run
