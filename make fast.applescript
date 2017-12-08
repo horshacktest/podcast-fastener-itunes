@@ -30,7 +30,7 @@ on getPathToArtworkFile(itunesTrack)
 		set itunesTrackFileAlias to location of itunesTrack
 	end tell
 	-- First try setting artwork to the override if it exists
-	set artworkpath to getOverrideArtworkPath(getparentfolderalias(itunesTrackFileAlias))
+	set artworkpath to getOverrideArtworkPath(itunesTrackFileAlias)
 	
 	-- Next try to extract artwork from the actual track.
 	-- Try this because some pods have unique ablumart for each episode.
@@ -47,14 +47,18 @@ on getPathToArtworkFile(itunesTrack)
 end getPathToArtworkFile
 
 
--- artwork files in the folder named default.jpg will take precedence over
--- all other artwork. (over albumart.png, albumart.jpg and embedded art)
-on getOverrideArtworkPath(parentFolderAlias)
+-- artwork files in the folder named after the current file + '.jpg' will take precedence over
+-- all other artwork. (over albumart.png, albumart.jpg) if default.jpg exists it is a folderwide override
+on getOverrideArtworkPath(itunesTrackFileAlias)
 	local overrideArt
 	try
-		set overrideArt to POSIX path of alias ((parentFolderAlias as string) & "default.jpg")
+		set overrideArt to POSIX path of alias ((itunesTrackFileAlias as string) & ".jpg")
 	on error
-		set overrideArt to ""
+		try
+			set overrideArt to POSIX path of alias ((getparentfolderalias(itunesTrackFileAlias) as string) & "default.jpg")
+		on error
+			set overrideArt to ""
+		end try
 	end try
 	return overrideArt
 end getOverrideArtworkPath
