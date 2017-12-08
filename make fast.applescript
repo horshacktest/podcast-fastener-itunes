@@ -28,7 +28,7 @@ on getPathToArtworkFile(itunesTrack)
 	local artworkpath, itunesTrackFileAlias
 	tell application "iTunes"
 		set itunesTrackFileAlias to location of itunesTrack
-	end tell	
+	end tell
 	-- First try setting artwork to the override if it exists
 	set artworkpath to getOverrideArtworkPath(getparentfolderalias(itunesTrackFileAlias))
 	
@@ -52,7 +52,7 @@ end getPathToArtworkFile
 on getOverrideArtworkPath(parentFolderAlias)
 	local overrideArt
 	try
-		set overrideArt to POSIX path of alias (path of parentFolderAlias & "default.jpg")
+		set overrideArt to POSIX path of alias ((parentFolderAlias as string) & "default.jpg")
 	on error
 		set overrideArt to ""
 	end try
