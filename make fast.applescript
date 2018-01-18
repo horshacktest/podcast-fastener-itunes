@@ -19,7 +19,7 @@ property outputfolder : choose folder with prompt "Where would you like to save 
 property outputformat : ".mp3"
 
 # declare global paths to executables
-global sox, lame
+global sox, lame, ffmpeg
 
 -- ARTWORK STUFF -------------------------------------
 -- this is entry function for artwork resolution
@@ -150,18 +150,28 @@ on fasten(trackData)
 	local inputfile, outputfile, thesoxcommand, thecompresscommand, fullcommand
 	set inputfile to quoted form of (sourcePath of trackData)
 	set outputfile to quoted form of (destinationPath of trackData)
-	set thesoxcommand to buildSoxCommand(inputfile, 1.7)
+	set thesoxcommand to buildSoxCommand(" -t sox - ", 1.7)
 	--log thesoxcommand
 	set thecompresscommand to buildLameCommand(trackData)
 	--log thecompresscommand
-	set fullcommand to thesoxcommand & " | " & thecompresscommand & outputfile
+	set fullcommand to buildFFmpegCommand(inputfile) & " | " & thesoxcommand & " | " & thecompresscommand & outputfile
 	log fullcommand
 	do shell script fullcommand
 end fasten
 
+-- TODO : use ffmpeg to handle aac files,
+-- ffmpeg -i inputfilename -f sox - | sox -p outputfilename
+-- maybe benchmark having it decode all files
+-- if it's going to be a depndency anyway
+-- and it will be simpler than branching on filetype
+-- see: https://sourceforge.net/p/sox/mailman/message/29154776/
+on buildFFmpegCommand(inputfile)
+	return ffmpeg & " -i " & inputfile & " -f sox - "
+end buildFFmpegCommand
+
 on buildSoxCommand(inputfile, tempofactor)
 	local formatoptions, dynamicrangeoptions, tempooptions, thesoxcommand
-	set formatoptions to " " & inputfile & " -t raw -r 32k -e signed-integer -c 2 - "
+	set formatoptions to " " & inputfile & " -t raw -r 32k -e signed-integer -b 16 -c 2 - "
 	set dynamicrangeoptions to " compand 0.3,1 6:-70,-60,-20 -5 -90 0.2 "
 	set tempooptions to " tempo -s " & tempofactor & " dither "
 	set thesoxcommand to sox & formatoptions & dynamicrangeoptions & tempooptions
@@ -210,6 +220,7 @@ on preflight()
 	log "preflight starting"
 	set lame to checkcmd("lame")
 	set sox to checkcmd("sox")
+	set ffmpeg to checkcmd("ffmpeg")
 	log "preflight done"
 end preflight
 
