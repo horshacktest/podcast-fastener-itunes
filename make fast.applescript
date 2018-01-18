@@ -110,6 +110,7 @@ end getArtworkDataFormat
 on dumpArtworkToFile(itunesTrack)
 	set art to checkForTrackArtwork(itunesTrack)
 	if art is not false then
+		-- TODO do type check to make sure this is artwork. one time someone had a string in the artwork field. Looks like they though it was "artist" not "artwork" ??
 		return dumpArtworkToFileUsingiTunes(itunesTrack, art)
 	else
 		return ""
