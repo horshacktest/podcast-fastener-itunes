@@ -147,14 +147,10 @@ on fixupiTunesMetadata(itunesTrack)
 end fixupiTunesMetadata
 
 on fasten(trackData)
-	local inputfile, outputfile, thesoxcommand, thecompresscommand, fullcommand
+	local inputfile, outputfile, fullcommand
 	set inputfile to quoted form of (sourcePath of trackData)
 	set outputfile to quoted form of (destinationPath of trackData)
-	set thesoxcommand to buildSoxCommand(" -t sox - ", 1.7)
-	--log thesoxcommand
-	set thecompresscommand to buildLameCommand(trackData)
-	--log thecompresscommand
-	set fullcommand to buildFFmpegCommand(inputfile) & " | " & thesoxcommand & " | " & thecompresscommand & outputfile
+	set fullcommand to buildFFmpegCommand(inputfile) & " | " & buildSoxCommand(" -t sox - ", 1.7) & " | " & buildLameCommand(trackData) & outputfile
 	log fullcommand
 	do shell script fullcommand
 end fasten
@@ -170,11 +166,11 @@ on buildFFmpegCommand(inputfile)
 end buildFFmpegCommand
 
 on buildSoxCommand(inputfile, tempofactor)
-	local formatoptions, dynamicrangeoptions, tempooptions, thesoxcommand
+	local formatoptions, dynamicrangeoptions, tempooptions
 	set formatoptions to " " & inputfile & " -t raw -r 32k -e signed-integer -b 16 -c 2 - "
 	set dynamicrangeoptions to " compand 0.3,1 6:-70,-60,-20 -5 -90 0.2 "
 	set tempooptions to " tempo -s " & tempofactor & " dither "
-	set thesoxcommand to sox & formatoptions & dynamicrangeoptions & tempooptions
+	return sox & formatoptions & dynamicrangeoptions & tempooptions
 end buildSoxCommand
 
 on buildLameCommand(trackData)
@@ -182,7 +178,7 @@ on buildLameCommand(trackData)
 	--NOTE: lame writes id3v2.3 tags
 	set formatoptions to " -r -s 32 -V 7 "
 	set id3options to "--id3v2-latin1 --id3v2-only " & buildLameId3Options(trackData)
-	set thelamecmd to lame & formatoptions & id3options & " - "
+	return lame & formatoptions & id3options & " - "
 end buildLameCommand
 
 on buildLameId3Options(trackData)
