@@ -263,7 +263,10 @@ on run
 			--get trackData
 			--do the work
 			my fasten(trackData)
-			set enabled of itunesTrack to false
+			
+			set rating of itunesTrack to 99
+			--set played count of itunesTrack to 1
+			--set enabled of itunesTrack to false
 			-- TODO cleanup artwork file
 		end repeat
 		
